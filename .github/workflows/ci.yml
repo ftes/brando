@@ -1024,6 +1024,150 @@ jobs:
           if-no-files-found: warn
           retention-days: 7
 
+  # The ported specs (e2e/test/e2e_pw), run twice on the same runner: the
+  # original Playwright specs they were ported from, and the ExUnit port on
+  # playwright_ex. Informational, like the E2E jobs above.
+  e2e_subset:
+    name: E2E subset (${{ matrix.runner }})
+    needs: [e2e_build, e2e_assets]
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    continue-on-error: true
+    if: >-
+      ${{ !cancelled() && needs.e2e_build.result == 'success' && needs.e2e_assets.result == 'success'
+      && (github.event_name == 'pull_request' || github.event_name == 'workflow_dispatch') }}
+    strategy:
+      fail-fast: false
+      matrix:
+        runner: [js, playwright_ex]
+    env:
+      BRANDO_E2E_INSTANCE: ci
+      BRANDO_E2E_POOL_SIZE: 50
+    steps:
+      - name: Start PostgreSQL
+        run: |
+          sudo systemctl start postgresql.service
+          timeout 60 sh -c 'until pg_isready -h localhost -q; do sleep 1; done'
+          sudo -u postgres psql -q -c "ALTER USER postgres PASSWORD 'postgres'"
+          sudo -u postgres createdb e2e_project_dev
+
+      - name: Check out Brando
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          path: brando
+
+      - name: Check out JSON API integration
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          repository: brandocms/brando_json_api
+          path: brando_json_api
+
+      - name: Check out GraphQL integration
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          repository: brandocms/brando_graphql
+          path: brando_graphql
+
+      - name: Set up Elixir
+        uses: erlef/setup-beam@54075bcc5e249e4758d363f27d099f55d843f124 # v1.24.1
+        with:
+          elixir-version: 1.20.4
+          otp-version: 28.5.0.8
+
+      - name: Set up pnpm
+        if: matrix.runner == 'js'
+        uses: pnpm/action-setup@ea17c68df8912ef543352723c149a84f56e3d413 # v6.1.0
+        with:
+          version: 12.15.0
+
+      - name: Set up Node.js
+        if: matrix.runner == 'js'
+        uses: actions/setup-node@949feb2413d6458794dcd2491c4babbbce0c15c1 # v7.1.0
+        with:
+          node-version: 24
+          cache: pnpm
+          cache-dependency-path: brando/e2e/playwright/pnpm-lock.yaml
+
+      - name: Restore E2E dependencies and build
+        uses: actions/cache/restore@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # v6.1.0
+        with:
+          path: |
+            brando/e2e/deps
+            brando/e2e/_build
+          key: e2e-v1-${{ runner.os }}-28.5.0.8-1.20.4-${{ hashFiles('brando/e2e/mix.lock') }}-${{ github.sha }}
+          restore-keys: |
+            e2e-v1-${{ runner.os }}-28.5.0.8-1.20.4-${{ hashFiles('brando/e2e/mix.lock') }}-
+            e2e-v1-${{ runner.os }}-28.5.0.8-1.20.4-
+
+      - name: Install Elixir dependencies
+        working-directory: brando/e2e
+        run: source .envrc && MIX_ENV=e2e mix deps.get
+
+      - name: Compile E2E application
+        working-directory: brando/e2e
+        run: source .envrc && MIX_ENV=e2e mix compile --all-warnings --warnings-as-errors
+
+      - name: Download this run's consumer assets
+        uses: actions/download-artifact@9000827ccba6bdab643e8b6fd33ac0654aef8333 # v8.0.2
+        with:
+          name: e2e-consumer-assets
+          path: brando/e2e/priv/static
+
+      # The original specs
+      - name: Install Playwright
+        if: matrix.runner == 'js'
+        working-directory: brando/e2e/playwright
+        timeout-minutes: 5
+        run: |
+          pnpm install --frozen-lockfile
+          pnpm exec playwright install --with-deps chromium
+
+      - name: Run the original specs
+        if: matrix.runner == 'js'
+        working-directory: brando/e2e
+        run: |
+          source .envrc
+          ./test_e2e.sh --reset $(cat playwright/ported-specs.txt)
+
+      # The port
+      - name: Cache Playwright
+        if: matrix.runner == 'playwright_ex'
+        uses: actions/cache@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # v6.1.0
+        with:
+          path: |
+            ~/.cache/playwright
+            ~/.cache/ms-playwright
+          key: playwright-ex-${{ runner.os }}-1.65.0-rc.1
+
+      - name: Install Playwright (playwright_ex)
+        if: matrix.runner == 'playwright_ex'
+        working-directory: brando/e2e
+        run: source .envrc && MIX_ENV=e2e mix playwright.install -- chromium --with-deps
+
+      - name: Prepare the database
+        if: matrix.runner == 'playwright_ex'
+        working-directory: brando/e2e
+        run: source .envrc && BRANDO_SEEDING=true MIX_ENV=e2e mix run --no-start priv/repo/prepare_e2e.exs --reset
+
+      - name: Run the ported specs
+        if: matrix.runner == 'playwright_ex'
+        working-directory: brando/e2e
+        run: |
+          source .envrc
+          MIX_ENV=e2e mix test --only e2e || { [ $? -eq 2 ] && MIX_ENV=e2e mix test --only e2e --failed; }
+
+      - name: Upload artifacts
+        if: always()
+        uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
+        with:
+          name: e2e-subset-${{ matrix.runner }}
+          path: |
+            brando/e2e/playwright/playwright-report
+            brando/e2e/playwright/test-results
+            brando/e2e/test-results
+          if-no-files-found: ignore
+          retention-days: 7
+
   # Merges the unit and E2E exports into one report. Runs even when E2E
   # failed (it is still informational), using whatever data was exported.
   coverage_report:

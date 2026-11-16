@@ -44,7 +44,7 @@ defmodule E2eProject.MixProject do
   defp elixirc_paths(_), do: ["lib"]
 
   # Specify test path per environment
-  defp test_paths(:e2e), do: ["test/e2e"]
+  defp test_paths(:e2e), do: ["test/e2e_pw"]
   defp test_paths(_), do: ["test/unit"]
 
   # Specifies your project dependencies.
@@ -53,6 +53,7 @@ defmodule E2eProject.MixProject do
   defp deps do
     [
       {:tidewave, "~> 0.1", only: [:dev, :test, :e2e]},
+      {:playwright, "~> 1.65.0-rc.1", hex: :playwright_ex, only: [:test, :e2e]},
       {:igniter, "~> 0.6"},
       # phoenix
       {:phoenix, "1.8.16"},
