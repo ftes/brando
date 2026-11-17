@@ -1137,12 +1137,12 @@ jobs:
           path: |
             ~/.cache/playwright
             ~/.cache/ms-playwright
-          key: playwright-ex-${{ runner.os }}-1.65.0-rc.1
+          key: playwright-ex-${{ runner.os }}-main-0217c34
 
       - name: Install Playwright (playwright_ex)
         if: matrix.runner == 'playwright_ex'
         working-directory: brando/e2e
-        run: source .envrc && MIX_ENV=e2e mix playwright.install -- chromium --with-deps
+        run: source .envrc && MIX_ENV=e2e mix playwright.install chromium --with-deps
 
       - name: Prepare the database
         if: matrix.runner == 'playwright_ex'
