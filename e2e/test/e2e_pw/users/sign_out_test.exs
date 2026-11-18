@@ -53,9 +53,8 @@ defmodule E2eProject.E2e.Users.SignOutTest do
     sandbox_user_agent: user_agent
   } do
     %{"email" => email, "password" => password} = two_factor(user_agent, "user")
-    opts = [base_url: base_url(), user_agent: user_agent, viewport: %{width: 1280, height: 720}]
-    first = Browser.new_context!(browser, opts)
-    second = Browser.new_context!(browser, opts)
+    first = Browser.new_context!(browser, base_url: base_url(), user_agent: user_agent)
+    second = Browser.new_context!(browser, base_url: base_url(), user_agent: user_agent)
 
     try do
       open = BrowserContext.new_page!(first)

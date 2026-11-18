@@ -53,12 +53,7 @@ defmodule E2eProject.PlaywrightCase do
   def build_user_page(browser, user_agent, email) do
     {_status, _body, headers} = http(:post, "/e2e/login/#{email}", [], "", user_agent)
 
-    context =
-      Browser.new_context!(browser,
-        base_url: base_url(),
-        user_agent: user_agent,
-        viewport: %{width: 1280, height: 720}
-      )
+    context = Browser.new_context!(browser, base_url: base_url(), user_agent: user_agent)
 
     cookies =
       for {~c"set-cookie", value} <- headers do
