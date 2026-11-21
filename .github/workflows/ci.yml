@@ -1154,10 +1154,11 @@ jobs:
         working-directory: brando/e2e
         run: |
           source .envrc
-          MIX_ENV=e2e mix test --only e2e || { [ $? -eq 2 ] && MIX_ENV=e2e mix test --only e2e --failed; }
+          f="--formatter ExUnit.CLIFormatter --formatter Playwright.Test.GitHubFormatter"
+          MIX_ENV=e2e mix test --only e2e $f || { [ $? -eq 2 ] && MIX_ENV=e2e mix test --only e2e --failed $f; }
 
       - name: Upload artifacts
-        if: always()
+        if: ${{ !cancelled() }}
         uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
         with:
           name: e2e-subset-${{ matrix.runner }}

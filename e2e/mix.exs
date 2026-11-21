@@ -53,7 +53,7 @@ defmodule E2eProject.MixProject do
   defp deps do
     [
       {:tidewave, "~> 0.1", only: [:dev, :test, :e2e]},
-      {:playwright, "~> 1.65.0-rc.2", hex: :playwright_ex, only: [:test, :e2e]},
+      {:playwright, "~> 1.65.0-rc.3", hex: :playwright_ex, only: [:test, :e2e]},
       {:igniter, "~> 0.6"},
       # phoenix
       {:phoenix, "1.8.16"},

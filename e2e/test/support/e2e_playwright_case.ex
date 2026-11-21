@@ -8,11 +8,20 @@ defmodule E2eProject.PlaywrightCase do
   """
   use ExUnit.CaseTemplate
 
+  # In place of the ExUnit.Assertions that ExUnit.CaseTemplate imports: asserts as steps.
+  import ExUnit.Assertions, only: []
+  import Playwright.Test.Assertions
+
   alias Playwright.{Browser, BrowserContext, Expect, Locator, Page}
 
   using opts do
+    opts =
+      opts
+      |> Keyword.put_new(:async, false)
+      |> Keyword.put_new(:parameterize, quote(do: E2eProject.PlaywrightCase.projects()))
+
     quote do
-      use Playwright.Case, unquote(Keyword.put_new(opts, :async, false))
+      use Playwright.Case, unquote(opts)
       import E2eProject.PlaywrightCase
 
       @moduletag :e2e
@@ -27,6 +36,15 @@ defmodule E2eProject.PlaywrightCase do
         %{page: page, sandbox_user_agent: user_agent}
       end
     end
+  end
+
+  @doc "playwright.config.js's projects, as `parameterize:` takes them."
+  def projects do
+    [
+      Playwright.Test.parameters(
+        [name: "Google Chrome"] ++ Playwright.device("Desktop Chrome") ++ [channel: "chromium"]
+      )
+    ]
   end
 
   def base_url, do: Playwright.Test.config().context_options[:base_url]

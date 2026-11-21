@@ -180,9 +180,9 @@ config :brando, Brando.Videos.Uploaders.Bunny,
   req_options: [plug: E2EFakeBunny]
 
 # Playwright.Test (playwright_ex) settings for test/e2e_pw, mirroring
-# playwright/playwright.config.js: Desktop Chrome on the `chromium` channel.
+# playwright/playwright.config.js. Its one project ('Google Chrome', Desktop
+# Chrome on the `chromium` channel) is E2eProject.PlaywrightCase.projects/0.
 config :playwright, :test,
-  launch_options: [channel: "chromium"],
   context_options: [
     base_url: "http://localhost:#{e2e_port}",
     ignore_https_errors: true
