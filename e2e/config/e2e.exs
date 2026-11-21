@@ -178,3 +178,17 @@ config :brando, Brando.Videos.Uploaders.Bunny,
   cdn_hostname: "bunny-cdn.e2e.test",
   tus_endpoint: "/e2e/bunny/tus",
   req_options: [plug: E2EFakeBunny]
+
+# Playwright.Test (playwright_ex) settings for test/e2e_pw, mirroring
+# playwright/playwright.config.js. Its one project ('Google Chrome', Desktop
+# Chrome on the `chromium` channel) is E2eProject.PlaywrightCase.projects/0.
+config :playwright, :test,
+  context_options: [
+    base_url: "http://localhost:#{e2e_port}",
+    ignore_https_errors: true
+  ],
+  action_timeout: 15_000,
+  navigation_timeout: 30_000,
+  trace: :retain_on_failure,
+  screenshot: :only_on_failure,
+  workers: 1
